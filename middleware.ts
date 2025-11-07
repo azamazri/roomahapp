@@ -138,12 +138,32 @@ export async function middleware(request: NextRequest) {
       // Incomplete profile → send to onboarding
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding/verifikasi'
-      return NextResponse.redirect(url)
+      const redirectResponse = NextResponse.redirect(url)
+      // Copy cookies from supabaseResponse to redirectResponse
+      supabaseResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          ...cookie,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        })
+      })
+      return redirectResponse
     } else {
       // Complete profile → send to browse page
       const url = request.nextUrl.clone()
       url.pathname = '/cari-jodoh'
-      return NextResponse.redirect(url)
+      const redirectResponse = NextResponse.redirect(url)
+      // Copy cookies from supabaseResponse to redirectResponse
+      supabaseResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, {
+          ...cookie,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        })
+      })
+      return redirectResponse
     }
   }
 
@@ -151,14 +171,34 @@ export async function middleware(request: NextRequest) {
   if (isProtectedPath && !hasCompletedOnboarding) {
     const url = request.nextUrl.clone()
     url.pathname = '/onboarding/verifikasi'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    // Copy cookies from supabaseResponse to redirectResponse
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, {
+        ...cookie,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      })
+    })
+    return redirectResponse
   }
 
   // If on onboarding page but already completed
   if (isOnboardingPath && hasCompletedOnboarding) {
     const url = request.nextUrl.clone()
     url.pathname = '/cari-jodoh'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    // Copy cookies from supabaseResponse to redirectResponse
+    supabaseResponse.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, {
+        ...cookie,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      })
+    })
+    return redirectResponse
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

@@ -47,8 +47,10 @@ export function OnboardingSummary() {
       const result = await completeOnboarding(null);
       
       if (result.success) {
-        router.refresh();
-        router.push("/cari-jodoh");
+        // CRITICAL: Use window.location for full page reload
+        // This ensures middleware processes the new session state properly
+        // and cookies are preserved through the navigation
+        window.location.href = "/cari-jodoh";
       } else {
         console.error(result.error);
         // TODO: Show toast error

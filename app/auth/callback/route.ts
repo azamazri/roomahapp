@@ -92,12 +92,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Profile exists, check if onboarding completed
-      if (!profile.registered_at) {
-        // Has profile but not registered → continue onboarding
-        return NextResponse.redirect(`${origin}/onboarding/verifikasi`);
-      }
-
-      // All good, redirect to app
+      // CRITICAL: Middleware will handle redirect based on onboarding status
+      // Just navigate to /cari-jodoh and let middleware check & redirect if needed
       return NextResponse.redirect(`${origin}/cari-jodoh`);
     }
 

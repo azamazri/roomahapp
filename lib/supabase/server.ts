@@ -31,7 +31,7 @@ export async function createClient() {
                 secure: isProduction,
                 sameSite: 'lax',
                 path: '/',
-                httpOnly: true,
+                // httpOnly: true, // Disabled for debugging
               }
               cookieStore.set(name, value, cookieOptions)
             })

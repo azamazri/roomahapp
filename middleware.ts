@@ -71,13 +71,24 @@ export async function middleware(request: NextRequest) {
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) => {
+            // Debug logging
+            console.log('[Middleware] Setting cookie:', name, {
+              secure: isProduction,
+              sameSite: 'lax',
+              path: '/',
+              domain: isProduction ? '.roomahapp.com' : undefined
+            })
+            
             // Force correct cookie options for production HTTPS
             const cookieOptions = {
               ...options,
               secure: isProduction,
               sameSite: 'lax' as const,
               path: '/',
-              httpOnly: true,
+              // Remove httpOnly temporarily for debugging
+              // httpOnly: true,
+              // Explicitly set domain for production
+              ...(isProduction && { domain: '.roomahapp.com' })
             }
             supabaseResponse.cookies.set(name, value, cookieOptions)
           })
@@ -146,12 +157,14 @@ export async function middleware(request: NextRequest) {
       const redirectResponse = NextResponse.redirect(url)
       // Copy cookies from supabaseResponse to redirectResponse
       supabaseResponse.cookies.getAll().forEach(cookie => {
+        console.log('[Middleware] Copying cookie to redirect:', cookie.name)
         redirectResponse.cookies.set(cookie.name, cookie.value, {
           ...cookie,
           secure: isProduction,
           sameSite: 'lax',
           path: '/',
-          httpOnly: true,
+          // httpOnly: true, // Disabled for debugging
+          ...(isProduction && { domain: '.roomahapp.com' })
         })
       })
       return redirectResponse
@@ -162,12 +175,14 @@ export async function middleware(request: NextRequest) {
       const redirectResponse = NextResponse.redirect(url)
       // Copy cookies from supabaseResponse to redirectResponse
       supabaseResponse.cookies.getAll().forEach(cookie => {
+        console.log('[Middleware] Copying cookie to redirect:', cookie.name)
         redirectResponse.cookies.set(cookie.name, cookie.value, {
           ...cookie,
           secure: isProduction,
           sameSite: 'lax',
           path: '/',
-          httpOnly: true,
+          // httpOnly: true, // Disabled for debugging
+          ...(isProduction && { domain: '.roomahapp.com' })
         })
       })
       return redirectResponse
@@ -181,12 +196,14 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(url)
     // Copy cookies from supabaseResponse to redirectResponse
     supabaseResponse.cookies.getAll().forEach(cookie => {
+      console.log('[Middleware] Copying cookie to redirect:', cookie.name)
       redirectResponse.cookies.set(cookie.name, cookie.value, {
         ...cookie,
         secure: isProduction,
         sameSite: 'lax',
         path: '/',
-        httpOnly: true,
+        // httpOnly: true, // Disabled for debugging
+        ...(isProduction && { domain: '.roomahapp.com' })
       })
     })
     return redirectResponse
@@ -199,12 +216,14 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(url)
     // Copy cookies from supabaseResponse to redirectResponse
     supabaseResponse.cookies.getAll().forEach(cookie => {
+      console.log('[Middleware] Copying cookie to redirect:', cookie.name)
       redirectResponse.cookies.set(cookie.name, cookie.value, {
         ...cookie,
         secure: isProduction,
         sameSite: 'lax',
         path: '/',
-        httpOnly: true,
+        // httpOnly: true, // Disabled for debugging
+        ...(isProduction && { domain: '.roomahapp.com' })
       })
     })
     return redirectResponse

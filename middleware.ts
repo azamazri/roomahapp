@@ -7,6 +7,10 @@ export async function middleware(request: NextRequest) {
   // Generate X-Request-ID for correlation tracking (Web Crypto API - Edge Runtime compatible)
   const requestId = crypto.randomUUID();
   
+  // Detect production environment
+  const isProduction = request.url.includes('roomahapp.com') || 
+                       request.url.includes('netlify.app')
+  
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -70,9 +74,10 @@ export async function middleware(request: NextRequest) {
             // Force correct cookie options for production HTTPS
             const cookieOptions = {
               ...options,
-              secure: process.env.NODE_ENV === 'production',
+              secure: isProduction,
               sameSite: 'lax' as const,
               path: '/',
+              httpOnly: true,
             }
             supabaseResponse.cookies.set(name, value, cookieOptions)
           })
@@ -143,9 +148,10 @@ export async function middleware(request: NextRequest) {
       supabaseResponse.cookies.getAll().forEach(cookie => {
         redirectResponse.cookies.set(cookie.name, cookie.value, {
           ...cookie,
-          secure: process.env.NODE_ENV === 'production',
+          secure: isProduction,
           sameSite: 'lax',
           path: '/',
+          httpOnly: true,
         })
       })
       return redirectResponse
@@ -158,9 +164,10 @@ export async function middleware(request: NextRequest) {
       supabaseResponse.cookies.getAll().forEach(cookie => {
         redirectResponse.cookies.set(cookie.name, cookie.value, {
           ...cookie,
-          secure: process.env.NODE_ENV === 'production',
+          secure: isProduction,
           sameSite: 'lax',
           path: '/',
+          httpOnly: true,
         })
       })
       return redirectResponse
@@ -176,9 +183,10 @@ export async function middleware(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value, {
         ...cookie,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         sameSite: 'lax',
         path: '/',
+        httpOnly: true,
       })
     })
     return redirectResponse
@@ -193,9 +201,10 @@ export async function middleware(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value, {
         ...cookie,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         sameSite: 'lax',
         path: '/',
+        httpOnly: true,
       })
     })
     return redirectResponse

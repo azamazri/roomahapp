@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginData } from "@/features/auth/schemas/login";
-import { signIn, startGoogleOAuth } from "@/server/actions/auth";
+import { startGoogleOAuth } from "@/server/actions/auth";
 
 export function AuthFormLogin() {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,14 +14,14 @@ export function AuthFormLogin() {
 
   // Check for error in URL params (from OAuth callback)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const urlError = params.get('message');
+      const urlError = params.get("message");
       if (urlError) {
         setError(decodeURIComponent(urlError));
         // Clean URL without triggering navigation
         const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, '', cleanUrl);
+        window.history.replaceState({}, "", cleanUrl);
       }
     }
   }, []);
@@ -37,21 +37,50 @@ export function AuthFormLogin() {
   async function onSubmit(data: LoginData) {
     setIsLoading(true);
     setError("");
+
     try {
-      const res = await signIn(data.email, data.password);
-      if (res.success) {
-        const usp = new URLSearchParams(window.location.search);
-        const next = usp.get("next") || "/cari-jodoh";
-        
-        // CRITICAL: Use window.location for full page reload
-        // This ensures cookies are properly set and middleware processes the session
-        window.location.href = next;
-      } else {
-        setError(res.error || "Gagal login. Periksa email dan password Anda.");
+      console.log("[LOGIN FORM] Submitting login request");
+
+      // ✅ Call API Route Handler instead of Server Action
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+        credentials: "include", // Important: Include cookies in request
+      });
+
+      const result = await response.json();
+
+      console.log("[LOGIN FORM] Response:", {
+        status: response.status,
+        success: result.success,
+      });
+
+      if (!response.ok || !result.success) {
+        setError(
+          result.error || "Gagal login. Periksa email dan password Anda."
+        );
+        setIsLoading(false);
+        return;
       }
+
+      console.log("[LOGIN FORM] Login successful, redirecting...");
+
+      // Get redirect URL from query params or default to /cari-jodoh
+      const usp = new URLSearchParams(window.location.search);
+      const next = usp.get("next") || "/cari-jodoh";
+
+      // CRITICAL: Use window.location for full page reload
+      // This ensures cookies are properly set and middleware processes the session
+      window.location.href = next;
     } catch (e: any) {
+      console.error("[LOGIN FORM] Error:", e);
       setError(e?.message || "Terjadi kesalahan. Silakan coba lagi.");
-    } finally {
       setIsLoading(false);
     }
   }

@@ -4,26 +4,30 @@ import { checkRateLimit } from '@/lib/api/rate-limit'
 import { generateCsrfToken, setCsrfTokenCookie } from '@/lib/security/csrf'
 
 export async function middleware(request: NextRequest) {
-  // Generate X-Request-ID for correlation tracking (Web Crypto API - Edge Runtime compatible)
   const requestId = crypto.randomUUID();
   
-  // Detect production environment and hostname
   const url = new URL(request.url)
   const hostname = url.hostname
   const isProduction = hostname.includes('roomahapp.com') || hostname.includes('netlify.app')
-  const isCustomDomain = hostname === 'roomahapp.com' || hostname.endsWith('.roomahapp.com')
+  
+  // 🔍 ENHANCED DEBUG: Log environment detection
+  console.log('[DEBUG] Environment:', {
+    hostname,
+    isProduction,
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
+  })
   
   let supabaseResponse = NextResponse.next({
     request,
   })
   
-  // Add Request ID to response headers
   supabaseResponse.headers.set('X-Request-ID', requestId)
   
   // Rate limiting for API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const { allowed, remaining, resetTime } = checkRateLimit(request, {
-      windowMs: 60 * 1000, // 1 minute
+      windowMs: 60 * 1000,
       maxRequests: 100,
     });
     
@@ -47,7 +51,6 @@ export async function middleware(request: NextRequest) {
       );
     }
     
-    // Add rate limit headers
     supabaseResponse.headers.set('X-RateLimit-Limit', '100');
     supabaseResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
     supabaseResponse.headers.set('X-RateLimit-Reset', resetTime.toString());
@@ -59,6 +62,15 @@ export async function middleware(request: NextRequest) {
     setCsrfTokenCookie(supabaseResponse, csrfToken);
   }
 
+  // 🔍 ENHANCED DEBUG: Log incoming cookies BEFORE Supabase client
+  const incomingCookies = request.cookies.getAll()
+  const sbCookiesIn = incomingCookies.filter(c => c.name.startsWith('sb-'))
+  console.log('[DEBUG] Incoming cookies:', {
+    total: incomingCookies.length,
+    supabaseCookies: sbCookiesIn.length,
+    names: sbCookiesIn.map(c => ({ name: c.name, valueLength: c.value.length })),
+  })
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -68,19 +80,33 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // DON'T recreate NextResponse here - it wipes out headers!
-          // Just set cookies on the existing supabaseResponse
+          // 🔍 ENHANCED DEBUG: Log setAll() callback
+          console.log('[DEBUG] Supabase setAll() called with', cookiesToSet.length, 'cookies')
+          
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Build proper cookie options
+            // 🔍 Log each cookie being set
+            console.log('[DEBUG] Setting cookie:', {
+              name,
+              valueLength: value.length,
+              originalOptions: options,
+              isProduction,
+            })
+            
             const cookieOptions = {
               ...options,
               secure: isProduction,
-              sameSite: 'lax' as const,
-              path: '/',
-              httpOnly: true,
-              maxAge: options?.maxAge || 60 * 60 * 24 * 7, // Default 7 days if not set
-              // Domain not set - let browser handle it for better compatibility
             }
+            
+            // 🔍 Log final options
+            console.log('[DEBUG] Final cookie options:', {
+              name,
+              secure: cookieOptions.secure,
+              sameSite: cookieOptions.sameSite,
+              path: cookieOptions.path,
+              httpOnly: cookieOptions.httpOnly,
+              maxAge: cookieOptions.maxAge,
+            })
+            
             supabaseResponse.cookies.set(name, value, cookieOptions)
           })
         },
@@ -88,19 +114,11 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  // TEMPORARY DEBUG LOGGING - Remove after debugging
-  const incomingCookies = request.cookies.getAll()
   console.log('[MIDDLEWARE DEBUG]', {
     pathname: request.nextUrl.pathname,
     hostname: hostname,
     isProduction: isProduction,
-    incomingCookiesCount: incomingCookies.length,
     hasSbCookies: incomingCookies.some(c => c.name.startsWith('sb-')),
-    cookieNames: incomingCookies.map(c => c.name)
   })
 
   const {
@@ -108,59 +126,42 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   console.log('[MIDDLEWARE DEBUG] User:', user ? `Authenticated: ${user.id}` : 'Not authenticated')
-
-  // CRITICAL FIX: Explicitly propagate Supabase cookies from request to response
-  // This ensures cookies persist across requests even without session changes
-  const sbCookies = request.cookies.getAll().filter(c => c.name.startsWith('sb-'))
-  if (sbCookies.length > 0) {
-    console.log('[MIDDLEWARE DEBUG] Propagating', sbCookies.length, 'Supabase cookies to response')
-    sbCookies.forEach(cookie => {
-      supabaseResponse.cookies.set({
-        name: cookie.name,
-        value: cookie.value,
-        secure: isProduction,
-        sameSite: 'lax',
-        path: '/',
-        httpOnly: true,
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      })
-    })
-  }
+  
+  // 🔍 ENHANCED DEBUG: Log outgoing cookies AFTER getUser()
+  const outgoingCookies = supabaseResponse.cookies.getAll()
+  const sbCookiesOut = outgoingCookies.filter(c => c.name.startsWith('sb-'))
+  console.log('[DEBUG] Outgoing cookies:', {
+    total: outgoingCookies.length,
+    supabaseCookies: sbCookiesOut.length,
+    names: sbCookiesOut.map(c => c.name),
+  })
 
   const pathname = request.nextUrl.pathname
 
-  // Protected routes - require authentication and completed onboarding
   const protectedPaths = ['/cari-jodoh', '/dashboard', '/cv-saya', '/koin-saya', '/riwayat-taaruf']
   const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
 
-  // Auth routes - login and register pages
   const authPaths = ['/login', '/register']
   const isAuthPath = authPaths.includes(pathname)
 
-  // Onboarding routes
   const isOnboardingPath = pathname.startsWith('/onboarding')
-
-  // Auth callback route - never redirect
   const isAuthCallback = pathname === '/auth/callback'
 
   if (isAuthCallback) {
+    console.log('[DEBUG] Auth callback - returning supabaseResponse')
     return supabaseResponse
   }
 
   // If user is NOT logged in
   if (!user) {
-    // Redirect protected routes to login
     if (isProtectedPath) {
+      console.log('[DEBUG] Not authenticated, redirecting to /login')
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('redirectTo', pathname)
-      const redirectResponse = NextResponse.redirect(url)
-      // CRITICAL: Copy all cookies (including CSRF) to redirect response
-      redirectResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-      return redirectResponse
+      return NextResponse.redirect(url)
     }
     
-    // Allow access to auth pages and onboarding when not logged in
     return supabaseResponse
   }
 
@@ -172,71 +173,48 @@ export async function middleware(request: NextRequest) {
     .maybeSingle()
 
   const hasCompletedOnboarding = profile && profile.registered_at !== null
+  
+  console.log('[DEBUG] Profile check:', {
+    userId: user.id,
+    hasProfile: !!profile,
+    hasCompletedOnboarding,
+  })
 
-  // If user is logged in and trying to access auth pages (login/register)
-  // Redirect them to app home if onboarding completed, or onboarding if not
+  // Redirect authenticated users from auth pages
   if (isAuthPath) {
     if (hasCompletedOnboarding) {
-      // User already registered and completed onboarding - redirect to app
+      console.log('[DEBUG] Authenticated user on auth page, redirecting to /cari-jodoh')
       const url = request.nextUrl.clone()
       url.pathname = '/cari-jodoh'
-      const redirectResponse = NextResponse.redirect(url)
-      // CRITICAL: Copy all cookies from supabaseResponse to redirect response
-      redirectResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-      return redirectResponse
+      return NextResponse.redirect(url)
     } else {
-      // User logged in but onboarding incomplete - redirect to onboarding
+      console.log('[DEBUG] Authenticated user on auth page, redirecting to onboarding')
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding/verifikasi'
-      const redirectResponse = NextResponse.redirect(url)
-      // CRITICAL: Copy all cookies from supabaseResponse to redirect response
-      redirectResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-      return redirectResponse
+      return NextResponse.redirect(url)
     }
   }
 
-  // If accessing protected routes but onboarding incomplete
+  // Redirect incomplete onboarding
   if (isProtectedPath && !hasCompletedOnboarding) {
+    console.log('[DEBUG] Incomplete onboarding, redirecting to /onboarding/verifikasi')
     const url = request.nextUrl.clone()
     url.pathname = '/onboarding/verifikasi'
-    const redirectResponse = NextResponse.redirect(url)
-    // CRITICAL: Copy all cookies from supabaseResponse to redirect response
-    redirectResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-    return redirectResponse
+    return NextResponse.redirect(url)
   }
 
-  // If on onboarding page but already completed - allow access
-  // Client will redirect if needed
+  // Allow onboarding access
   if (isOnboardingPath && hasCompletedOnboarding) {
+    console.log('[DEBUG] Completed onboarding accessing onboarding page, allowing')
     return supabaseResponse
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
-  // creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
-
+  console.log('[DEBUG] Returning supabaseResponse')
   return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     * - api routes
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

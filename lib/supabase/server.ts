@@ -49,8 +49,10 @@ export async function createClient() {
               })
               
               const cookieOptions: CookieOptions = {
-                ...options,  // ✅ PRESERVE all Supabase options
-                secure: isProduction,  // ✅ ONLY override secure
+                ...options,
+                secure: isProduction,
+                sameSite: 'lax', // ✅ FORCE lax for cross-page navigation
+                path: '/', // ✅ FORCE root path
               }
               
               // 🔍 Log final options

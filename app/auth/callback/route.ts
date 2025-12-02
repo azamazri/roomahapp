@@ -30,10 +30,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Create supabase client with proper cookie handling
     const supabase = await createClient();
 
     // Exchange code for session
+    // This will automatically set cookies via the createClient's cookie handlers
     const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    
+    console.log("[OAuth Callback] Exchange result:", {
+      hasUser: !!data?.user,
+      hasSession: !!data?.session,
+      error: exchangeError?.message,
+    });
 
     if (exchangeError) {
       console.error("OAuth exchange error:", exchangeError);
@@ -94,6 +102,10 @@ export async function GET(request: NextRequest) {
       // Profile exists, check if onboarding completed
       // CRITICAL: Middleware will handle redirect based on onboarding status
       // Just navigate to /cari-jodoh and let middleware check & redirect if needed
+      console.log("[OAuth Callback] LOGIN: Redirecting to /cari-jodoh");
+      
+      // createClient() has already set cookies via exchangeCodeForSession
+      // Just redirect - the cookies are in the response headers automatically
       return NextResponse.redirect(`${origin}/cari-jodoh`);
     }
 
@@ -102,11 +114,13 @@ export async function GET(request: NextRequest) {
       // If profile already exists and onboarding complete, redirect to app
       if (profile && profile.registered_at) {
         // User already fully registered, just login them
+        console.log("[OAuth Callback] REGISTER: User already registered, redirecting to /cari-jodoh");
         return NextResponse.redirect(`${origin}/cari-jodoh`);
       }
       
       // If profile exists but onboarding incomplete, continue onboarding
       if (profile && !profile.registered_at) {
+        console.log("[OAuth Callback] REGISTER: Onboarding incomplete, redirecting to /onboarding/verifikasi");
         return NextResponse.redirect(`${origin}/onboarding/verifikasi`);
       }
 
@@ -136,6 +150,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Profile created with registered_at = NULL, redirect to onboarding
+      console.log("[OAuth Callback] REGISTER: New profile created, redirecting to /onboarding/verifikasi");
       return NextResponse.redirect(`${origin}/onboarding/verifikasi`);
     }
 

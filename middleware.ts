@@ -95,6 +95,8 @@ export async function middleware(request: NextRequest) {
             const cookieOptions = {
               ...options,
               secure: isProduction,
+              sameSite: 'lax', // ✅ FORCE lax for cross-page navigation
+              path: '/', // ✅ FORCE root path
             }
             
             // 🔍 Log final options

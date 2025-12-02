@@ -85,9 +85,9 @@ export function FiveQForm() {
   }
 
   async function proceedToNext() {
-    // CRITICAL: Use window.location for full page reload
-    // This ensures cookies are properly set and middleware processes the session
-    window.location.href = "/onboarding/cv";
+    // Use router.push with refresh to maintain cookies
+    router.push("/onboarding/cv");
+    router.refresh(); // Force refresh to re-run middleware
   }
 
   async function handleModalContinue() {
@@ -129,8 +129,9 @@ export function FiveQForm() {
     setShowModal(false);
     setPendingData(null); // Clear pending data
     setIsLoading(false);
-    // CRITICAL: Use window.location for full page reload
-    window.location.href = "/"; // balik ke home jika user memilih batal
+    // Use router.push to maintain cookies
+    router.push("/"); // balik ke home jika user memilih batal
+    router.refresh();
   }
 
   return (

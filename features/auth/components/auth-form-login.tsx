@@ -75,9 +75,10 @@ export function AuthFormLogin() {
       const usp = new URLSearchParams(window.location.search);
       const next = usp.get("next") || "/cari-jodoh";
 
-      // CRITICAL: Use window.location for full page reload
-      // This ensures cookies are properly set and middleware processes the session
-      window.location.href = next;
+      // Use router.push with refresh to maintain cookies
+      // This is better than window.location.href which can lose cookies
+      router.push(next);
+      router.refresh(); // Force middleware to re-run and check session
     } catch (e: any) {
       console.error("[LOGIN FORM] Error:", e);
       setError(e?.message || "Terjadi kesalahan. Silakan coba lagi.");

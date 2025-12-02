@@ -25,6 +25,10 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Allow credentials for cookie-based auth
+    Access-Control-Allow-Credentials = "true"
+    # Prevent cookie stripping
+    Cache-Control = "no-cache, no-store, must-revalidate"
 
 # Environment variables hints (set these in Netlify dashboard)
 # NEXT_PUBLIC_SUPABASE_URL=your_supabase_url

@@ -108,7 +108,6 @@ export async function middleware(request: NextRequest) {
               httpOnly: cookieOptions.httpOnly,
               maxAge: cookieOptions.maxAge,
             })
-            
             supabaseResponse.cookies.set(name, value, cookieOptions)
           })
         },

@@ -88,14 +88,21 @@ export async function middleware(request: NextRequest) {
             console.log('[DEBUG] Setting cookie:', {
               name,
               valueLength: value.length,
-              originalOptions: options,
-              isProduction,
+              maxAge: options.maxAge,
+              willSet: value.length > 0 && options.maxAge !== 0,
             })
+            
+            // CRITICAL: Skip cookie DELETE operations (maxAge = 0)
+            // Only set cookies with actual values
+            if (value.length === 0 || options.maxAge === 0) {
+              console.log('[DEBUG] Skipping cookie (delete operation):', name)
+              return // Don't delete cookies in middleware!
+            }
             
             const cookieOptions = {
               ...options,
               secure: isProduction,
-              sameSite: 'lax', // ✅ FORCE lax for cross-page navigation
+              sameSite: 'lax' as const, // ✅ FORCE lax for cross-page navigation
               path: '/', // ✅ FORCE root path
             }
             
@@ -108,7 +115,19 @@ export async function middleware(request: NextRequest) {
               httpOnly: cookieOptions.httpOnly,
               maxAge: cookieOptions.maxAge,
             })
+            
+            // CRITICAL FIX: Set cookies in BOTH request AND response
+            // This ensures cookies are available for subsequent middleware operations
+            // and are sent to the browser
+            try {
+              request.cookies.set(name, value)
+            } catch (e) {
+              // Request cookies might be immutable in some cases
+              console.log('[DEBUG] Could not set request cookie (expected):', name)
+            }
+            
             supabaseResponse.cookies.set(name, value, cookieOptions)
+            console.log('[DEBUG] Cookie set successfully in response:', name)
           })
         },
       },
